@@ -8,7 +8,7 @@ use std::{
     str,
 };
 
-const LLVM_MAJOR_VERSION: usize = 20;
+const LLVM_MAJOR_VERSION: usize = 18;
 
 fn main() {
     if let Err(error) = run() {
@@ -27,6 +27,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         .into());
     }
 
+    println!("cargo::metadata=PREFIX={}", llvm_config("--prefix")?);
+    println!("cargo::metadata=CMAKE_DIR={}", llvm_config("--cmakedir")?);
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("cargo:rustc-link-search={}", llvm_config("--libdir")?);
 
@@ -79,9 +81,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     bindgen::builder()
         .header("wrapper.h")
         .clang_arg(format!("-I{}", llvm_config("--includedir")?))
+        .clang_arg(format!("-DMLIR_SYS_MAJOR_VERSION={LLVM_MAJOR_VERSION}"))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .generate()
-        .unwrap()
+        .allowlist_item("[Mm]lir.*")
+        .generate()?
         .write_to_file(Path::new(&env::var("OUT_DIR")?).join("bindings.rs"))?;
 
     Ok(())
